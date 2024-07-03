@@ -1,8 +1,6 @@
 ﻿@using System.Collections.Generic
 @using Microsoft.AspNetCore.Components
-@using Utils.Helpers;
-@using RFP_Blazor_Frontend.Helper;
-@inject RfpClient rfpclient
+@using Utils.Helpers
 @rendermode InteractiveServer
 
 <style>
@@ -21,7 +19,7 @@
     }
 </style>
 <MudStack>
-    <MudPaper Elevation="12" Class="pa-4" Style="height:30vh" >
+    <MudPaper Elevation="12" Class="pa-4" Style="height:vh" >
         <div id="another_unique_identifier" class="ma-0" style="height:15vh;overflow: auto;">
             <MudStack>
                 @if (chatHistory.Count > 0)
@@ -38,7 +36,7 @@
                 }
             </MudStack>
         </div>
-        <MudDivider Class="pa-4" />
+    </MudPaper>
         <MudStack Row="true" Style="background: #FFFFFF;">
             <MudSpacer  />
             <div role="button" tabindex="0" aria-label="Clear session" @onclick="ClearChat">
@@ -49,7 +47,7 @@
             <MudTextField @bind-Value="value" OnKeyDown="OnKeyDown" Label="Type a new question" Lines="3" TextUpdateSuppression="false" Style="background: #FFFFFF;" Variant="Variant.Outlined" OnAdornmentClick="AdornmentOnClick" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Send" />
             <MudSpacer />
         </MudStack>
-    </MudPaper>
+
 </MudStack>
 
 
@@ -91,6 +89,8 @@
         }
         await Task.Delay(1);
     }
+
+
 
     // async void ClearChat()
     // {

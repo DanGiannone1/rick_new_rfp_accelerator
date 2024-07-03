@@ -47,7 +47,6 @@
 
 
 @code {
-    private string? _textValue = "Hello";
     string? value;
     private List<string> chatHistory = new();
 
@@ -61,7 +60,6 @@
     {
         chatHistory.Add("test");
         await Task.Delay(100);
-        _textValue = "AdornmentClicked";
         StateHasChanged();
     }
 

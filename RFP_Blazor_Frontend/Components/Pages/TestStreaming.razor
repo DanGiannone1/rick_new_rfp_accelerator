@@ -1,0 +1,57 @@
+﻿@page "/teststreaming"
+@using System.Net.Http.Headers;
+@using RFP_Blazor_Frontend.Helper;
+@using RFP_Blazor_Frontend.Models;
+@using System.Text;
+@using System.Text.Json;
+<h3>teststreaming</h3>
+<style>
+    .text-with-new-lines {
+      white-space: pre-wrap;
+    }
+</style>
+
+<MudButton OnClick="@OneParent" Variant="Variant.Filled" Color="Color.Primary" >Get Results</MudButton>
+<MudText>
+    <div style="white-space: pre-wrap;">
+        <span style="white-space: pre-line">@_responseline</span>
+    </div>
+</MudText>
+
+
+@code {
+    private string? _responseline;
+    public string? ResponseLine { get; set; }
+    public async Task<Stream> ChildFunction(string message)
+    {
+        string apiUrl = "http://127.0.0.1:5000/stream_chat";
+        var payload = new ChatRequest { Message = message };
+
+        HttpClient httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        HttpResponseMessage response = await httpClient.PostAsync(apiUrl, content);
+        response.EnsureSuccessStatusCode();
+
+
+        Stream responseStream = await response.Content.ReadAsStreamAsync();
+        return responseStream;
+    }
+
+    public async Task OneParent()
+    {
+        _responseline = "";
+        Stream? responseStream = await ChildFunction("Why is the sky blue");
+
+        byte[] buffer = new byte[10]; // Adjust buffer size as needed
+        int bytesRead;
+        while (responseStream != null && (bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            string chunk = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            _responseline += chunk;
+            StateHasChanged();
+            await Task.Delay(1);
+            // Console.Write($@"***\n {chunk} \n***"); // For console output
+        }
+    }
+}

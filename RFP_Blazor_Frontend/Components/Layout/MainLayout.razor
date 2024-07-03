@@ -1,16 +1,18 @@
 ﻿@inherits LayoutComponentBase
+@using RFP_Blazor_Frontend.Helper;
+@inject RfpClient rfpclient
+@rendermode InteractiveServer
 
 <MudThemingProvider />
 <MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+@* <MudDialogProvider />
+<MudSnackbarProvider /> *@
 
 <MudLayout>
-    <MudAppBar Elevation="1">
+    <MudAppBar Elevation="1" >
 		<MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudText Typo="Typo.h5" Class="ml-3">Application</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">RFP Application</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
     </MudAppBar>
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
@@ -21,7 +23,28 @@
 </MudLayout>
 
 @code {
+    private string? stringValue;
     private bool _drawerOpen = true;
+    // private string? stringValue { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var _listOfRfps = await rfpclient.GetRfpsAsync();
+            // Simulate loading data asynchronously (replace with actual data fetching logic)
+            //await Task.Delay(1000); // Simulate loading delay
+
+            // Load data or perform initialization
+            // items = new List<string> { "Item 1", "Item 2", "Item 3" };
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting Rfps from endpoint: {ex.Message}");
+            // Handle or log the exception as needed
+        }
+    }
 
     private void DrawerToggle()
     {
