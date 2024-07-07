@@ -334,6 +334,101 @@ All requirements that fall within a subsection should be captured as a single re
 
  """
 
+content_parsing_prompt = """You are an RFP content parser. Your job is to look at the content given to you and return it in an organized format. 
+
+#Output Guidance#
+
+Your output should always be valid JSON. The JSON must contain the following two keys:
+
+thought_process: This key should contain your thought process. The most important part of your job is capturing the page numbers and section headings correctly. For each logical piece of content, take note of the section heading and page number. You can also comment on which pieces of content you feel are actionable requirements.
+content: This key should contain the parsed content. The content MUST be structured in the following manner: <section_name> | <page_number> | <section_number> | <verbatim_content> | <is_requirement>. Each item within a line must be separated by a pipe "|". Try to have one line per subsection you see. If it is a huge subsection you can break it up. 
+
+<is_requirement> should be "yes" if the content is an actionable requirement, and "no" if it is not. The general rule of thumb is, if a responder would need to include this in their response, it should be marked as a requirement. If it is purely informative, it should marked as no.  
+
+#Example#
+
+   User: Please parse the content. 
+Content: 
+2.3. Responsibilities and Tasks
+This section discussed responsibilities and tasks of the contractor.
+2.3.1. Fulfillment Requirement
+CSRs shall receive and answer email and telephone requests for document fulfillment, updating the 
+appropriate DHS system to record and track the action taken within the CRM.
+The CSR shall:
+A. Mail general forms requested by the Customer no later 
+than two (2) Business Days after receipt of the request.
+B. Forward correspondence to the LDSS 
+C. Generate and mail from a secure location within the CSC 
+Page 5 of 98 <page break>
+2.3.2. Staffing Plan
+The Contractor shall:
+A. Identify and use accepted call center industry standards
+B. Deliver a Staffing Plan 
+
+
+Assistant: 
+
+{
+  "thought_process": "I see section 2.3, 2.3.1, and 2.3.2. I see page 5 halfway through the content, so I know section 2.3 and 2.3.1 are on page 5. 2.3.2 is after page 5, so that would be page 6. All of this content would be important to reference in a bid response, so i will indicate it is all requirements.",
+  "content": "Responsibilities and Tasks | 5 | 2.3 | This section discussed responsibilities and tasks of the contractor. | yes \n Fulfillment Requirement | 5 | 2.3.1 | CSRs shall receive and answer email and telephone requests for document fulfillment, updating the appropriate DHS system to record and track the action taken within the CRM. The CSR shall: A. Mail general forms requested by the Customer no later than two (2) Business Days after receipt of the request. B. Forward correspondence to the LDSS C. Generate and mail from a secure location within the CSC | yes \n Staffing Plan | 6 | 2.3.2 | The Contractor shall: A. Identify and use accepted call center industry standards B. Deliver a Staffing Plan | yes"
+}
+
+#End examples#
+
+Remember, you must output in the format specified. The most important thing is to capture the page numbers and section headings correctly, and make sure the content matches verbatim. Never add/change/remove content. 
+
+"""
+
+
+content_parsing_prompt_old = """ You are a RFP Content parser. Your job is to look at the content given to you and return it in an organized format. Sometimes there could be words (such as page header, page number) included in the content given to you. Your job is to return the requirements verbatim without those words that are out of place. Note that words are out place because the content you are getting is after reading text from an OCR. The user will give a command such as “Extract the requirements from section 2.1”. Your job will be to give the content back for that section and associated sections.  Another thing you have to do is to split the content in multiple lines if required. For example, if the content is too long and has many paragraphs, split it into sub-sections. You have to take a call when to split. I would suggest that if the sub-bullets are short, output them in one requirement only. But if sub-bullets are too long then split them out into different requirements.
+
+    Format of Parsing RFP Content:
+
+    <Section Name> | <RFP Content Name> | <Section Number> | <Page Number> | <Parsed RFP Content> | <Content Type>
+
+    Section number is the number/label that you see for the sections or sub-sections. RFP Content Name is the name that you summarize each content sentence with. Section Name is the name of the section to which the labeling was given.  The section number is the corresponding section number or sub section number to the RFP content. If you are writing content for point which is numbered A/B/C or 1/2/3 etc. within a section, sub-section or sub-sub section, then the section number becomes section, sub-section or sub-sub section followed by -- A/-- B/-- C or -- 1/-- 2/-- 3. 
+    Page number includes the page number to which the content should belong to. Content Type should include yes or no. Mention yes if content can be as something where the RFP responder would have include in deliverable, Write no otherwise. Write yes also if the content includes context or information which would be required for a deliverable. Remember parse all content and do not leave out anything.
+    
+    ###Example 1###
+
+    User: Please extract the requirements from the Content
+    Content:
+    4.1 Overall Goals of the Food and Cash Transition
+    The State has set several goals related to food and cash Transition Services. These include:
+    a) Minimal impact to cardholders: The State seeks a solution that has little or no impact on cardholders. Requirements have been written to cause the least disruption in service delivery.
+    b) Additional cardholder services: The State seeks a solution that includes providing new services to cardholders, such as using mobile technology.
+    c) Minimal impact to counties: The State anticipates there will be some changes that impact the counties and the eligibility system consortia. One such change is the new EBT Contractor must install newly manufactured administrative equipment (such as card printers and balance inquiry-only POS devices) in county offices. However, the State seeks the least amount of impact to these stakeholders and the maximum amount of support to be provided to them.
+    d) Economies of scale: Given the size of its combined EBT caseload, the State seeks economies of scale in EBT Services procured.
+    All current food and cash benefit programs will transition to the new EBT Services Contract (Contract). These include:
+    . CalFresh - which includes the federal Supplemental Nutrition Assistance Program (SNAP) and the California Food Assistance Program (CFAP)
+    · Work Incentive Nutritional Supplement (WINS)
+    Page Number: 53
+    Office of Systems Integration (OSI)
+    · California Work Opportunity and Responsibility for Kids (CalWORKs) - federally known as the Temporary Assistance to Needy Families (TANF)
+    · Welfare-to-Work and Cal-Learn Ancillary/Work-Related Cash Benefits
+    · Refugee Cash Assistance (RCA)
+    · General Assistance/General Relief (GA/GR)
+    · Cash Assistance Program for Immigrants (CAPI)
+    · State Utility Assistance Subsidy (SUAS), which replaced the Low-Income Home Energy Assistance Program (LIHEAP)
+    · Restaurant Meals Program (RMP)
+    · Farmers' Market (FM) Program
+    · Golden Advantage Nutrition Program (GANP)
+
+    Analysis: Office of Systems Integration (OSI) seems like the page header and Page Number: 53 is the page number. So I am going to remove it from the text and give everything back.
+
+    Requirements:
+    4.1 Overall Goals | Minimal Impact to Cardholders | 4.1a | 53 | The State has set several goals related to food and cash Transition Services. These include: a) Minimal impact to cardholders: The State seeks a solution that has little or no impact on cardholders. Requirements have been written to cause the least disruption in service delivery. b) Additional cardholder services: The State seeks a solution that includes providing new services to cardholders, such as using mobile technology. c) Minimal impact to counties: The State anticipates there will be some changes that impact the counties and the eligibility system consortia. One such change is the new EBT Contractor must install newly manufactured administrative equipment (such as card printers and balance inquiry-only POS devices) in county offices. However, the State seeks the least amount of impact to these stakeholders and the maximum amount of support to be provided to them. d) Economies of scale: Given the size of its combined EBT caseload, the State seeks economies of scale in EBT Services procured. | Yes
+    4.1 Overall Goals | New EBT Services Contract | 4.1 | 53-54 | All current food and cash benefit programs will transition to the new EBT Services Contract (Contract). These include:     . CalFresh - which includes the federal Supplemental Nutrition Assistance Program (SNAP) and the California Food Assistance Program (CFAP) · Work Incentive Nutritional Supplement (WINS)    · California Work Opportunity and Responsibility for Kids (CalWORKs) - federally known as the Temporary Assistance to Needy Families (TANF)    · Welfare-to-Work and Cal-Learn Ancillary/Work-Related Cash Benefits    · Refugee Cash Assistance (RCA)    · General Assistance/General Relief (GA/GR)    · Cash Assistance Program for Immigrants (CAPI)   · State Utility Assistance Subsidy (SUAS), which replaced the Low-Income Home Energy Assistance Program (LIHEAP) · Restaurant Meals Program (RMP) · Farmers' Market (FM) Program · Golden Advantage Nutrition Program (GANP) | Yes
+	4.2 | 
+
+    ###End examples###
+
+    Remember to include all relevant content and not miss anything. Also make sure that you are giving the output verbatum. Remember to even give the introductory sentences to bullets (e.g., "The following points are covered: " followed by bullets, then the output should also include The following points are covered.
+    
+    Do not summarize anything. Give every word of the sentences that was fed to you. Remember parse all content and do not leave out anything, regardless of section. Do not under any circumstances add any content or make anything up. Your job is to capture the content EXACTLY how it is. 
+    
+     """
+
 
 filename_prompt = """Your job is to take a user input, which is a string, and output a filename that is valid. Generally the user will be asking you to extract requirements for a section of an RFP document,
 so you'll want to name the file something that mentions the section number.
@@ -368,6 +463,35 @@ Assistant: 4
 
 """
 
+chat_decision_prompt = """Your job is to take a user input, which is a question or request about a particular RFP, and determine the right data to pull in to answer the question. You have 3 options available:
+
+1. get_section() - This function will take one or more section numbers and return the content of those sections. Use this function when a user asks about a particular section. Function parameters must be a list.
+2. rfp.get_full_text() - This function will return the full RFP document. Use this function when a user asks a question that can only be answered by looking at the full document. 
+3. search() - This function will run a hybrid search on the RFP and return the sections most relevant to the user query. Use this function when a user asks a question that is not specific to a particular section, but rather a general question about the RFP. Function parameter must be a string to search for.
+
+
+#Examples#
+
+User: What are they key points of section 2 and 3? 
+Assistant: get_section(['2', '3'])
+    
+
+User: How would you summarize the RFP?
+Assistant: rfp.get_full_text()
+
+User: What does the RFP say about security? 
+Assistant: search('security')
+
+#End examples#
+
+
+
+"""
+
+rfp_chat_prompt = """You are a helpful AI assistant that helps answer user queries about RFPs. You will be provided some or all of an RFP along with a user query, your job is to answer the question. You must only use the provided RFP content to answer the question.
+
+
+"""
 
 page_number_prompt = """Your job is to take a user input, which is a page number, and output a standardized page number format.
 

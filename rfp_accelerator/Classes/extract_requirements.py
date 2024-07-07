@@ -13,6 +13,9 @@ from azure.cosmos.partition_key import PartitionKey
 from Common.prompts import *
 from Common.rfp import *
 from Common.global_vars import *
+from Classes.azure_cosmos_db import AzureCosmosDB  
+from Classes.openai_client import OpenAIClient  
+import json
 
 class ExtractRequirementsProcessor:
     def __init__(self):
@@ -38,7 +41,8 @@ class ExtractRequirementsProcessor:
             api_key=self.azure_openai_key,    
             api_version="2023-05-15"
         )
-        
+        self.cosmos_db = AzureCosmosDB()  
+        self.openai_client = OpenAIClient()  
         self.cosmos_client = cosmos_client.CosmosClient(self.cosmos_host, {'masterKey': self.cosmos_master_key}, user_agent="CosmosDBPythonQuickstart", user_agent_overwrite=True)
         self.db = self._get_or_create_database()
         self.container = self._get_or_create_container()
@@ -55,18 +59,6 @@ class ExtractRequirementsProcessor:
         except exceptions.CosmosResourceExistsError:
             return self.db.get_container_client(self.cosmos_container_id)
 
-    def inference(self, content, prompt, max_tokens, model):
-        messages = [{"role": "system", "content": prompt}]
-        messages.append({"role": "user", "content": content})
-
-        raw_response = self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0,
-            max_tokens=max_tokens
-        )
-
-        return raw_response.choices[0].message.content 
 
     def dict_to_json(self, filename, key, value):
         id = filename + " - " + key
@@ -84,25 +76,29 @@ class ExtractRequirementsProcessor:
 
     def extract_requirements(self, rfp, message):
         user_input = message
-        section = self.inference(user_input, query_prompt_2, 50, "djg-4o")
-        print(f"Extracting requirements from section {section} - Entered extraction_requirements")
+        section = self.openai_client.inference(user_input, query_prompt_2, 50)
+        print(f"Parsing content for section {section}")
 
         for key in rfp.content_dict:
             if key and re.match(r'^' + re.escape(section), key):
-                print(f"Key matach in for loop Key: {key}")
-                temp_input = f"Please extract the requirements from section {key}\n\nContent: {rfp.content_dict[key]}"
-                response = self.inference(temp_input, extraction_prompt, 4096, "djg-4o")
+                print(f"Key match in for loop Key: {key}")
+                temp_input = f"Please parse the content. Content: {rfp.content_dict[key]} <end content>. "
+                response = self.openai_client.inference(temp_input, content_parsing_prompt, 4096, response_format={ "type": "json_object" })
+                print(f"***Raw LLM Response***\n {response}")
+                data = json.loads(response)
+                content = data['content']
+                print(f"***Content***\n {content}")
 
-                split_output = re.split(r'Requirements for section .*:', response)
-                requirements = split_output[1] if len(split_output) > 1 else "No requirements found"
-                rfp.requirements_dict[key] = requirements
+                
+                rfp.requirements_dict[key] = content
 
                 partition_key_value = rfp.filename
                 document_id = partition_key_value + " - " + key
                 read_item = self.container.read_item(item=document_id, partition_key=partition_key_value)
-                read_item['requirements'] = requirements
-
+                read_item['requirements'] = content
                 self.container.replace_item(item=read_item, body=read_item)
+
+
         print(f"Extraction Logic Completed")
     
     # Allows you to run the requirements extraction process using a local file. 
@@ -118,7 +114,7 @@ if __name__ == "__main__":
         input_file="D:/temp/conduent/MD_RFP.pdf",
         output_file_path="D:/temp/conduent/",
         filename="MD_RFP_SUBSET",
-        message="Extract requirements from section 1"
+        message="Extract requirements from section 2.3"
     )
     
     

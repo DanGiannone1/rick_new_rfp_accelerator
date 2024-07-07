@@ -91,6 +91,16 @@ class RFP:
                 print("Requirements for ", section_id, " - ", requirements)
 
 
+    def get_full_text(self):
+        """
+        Function to get the full text of the RFP
+        """
+        full_text = ""
+        for key in self.content_dict:
+            full_text += self.content_dict[key]
+
+        
+        return full_text
 
         
 
